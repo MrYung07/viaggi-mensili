@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#172554">
+<title>Accedi — Conti personali e familiari</title>
+<style>
+:root{font-family:Arial,sans-serif;color:#172033;background:#f2f5fa}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at top left,#dbeafe,transparent 45%),#f2f5fa}.card{width:100%;max-width:440px;background:white;border:1px solid #e0e6ef;border-radius:20px;padding:28px;box-shadow:0 18px 50px #17255412}.brand{width:48px;height:48px;display:grid;place-items:center;border-radius:14px;background:#dbeafe;color:#1d4ed8;font-size:25px}h1{font-size:26px;margin:18px 0 8px}.muted{color:#637087;line-height:1.5}.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#f0f3f8;padding:5px;border-radius:10px;margin:22px 0}button{font:inherit;cursor:pointer;border:0;border-radius:9px;padding:12px;font-weight:700}.tab{background:transparent;color:#596579}.tab.active{background:white;color:#172033;box-shadow:0 1px 5px #00000010}label{display:block;font-size:14px;font-weight:700;margin:14px 0}input{display:block;width:100%;margin-top:7px;padding:12px;border:1px solid #cbd5e1;border-radius:9px;font:inherit}input:focus{outline:2px solid #93c5fd;border-color:#2563eb}.primary{width:100%;background:#1d4ed8;color:white;margin-top:8px}.link{background:none;color:#1d4ed8;padding:10px 0}.message{font-size:14px;line-height:1.5;padding:12px;border-radius:9px;background:#f1f5f9;overflow-wrap:anywhere}.message:empty{display:none}.foot{font-size:12px;color:#778196;margin-top:20px;line-height:1.5}@media(max-width:420px){.card{padding:22px}}
+</style>
+</head>
+<body><main class="card">
+<div class="brand" aria-hidden="true">€</div>
+<h1>Conti personali e familiari</h1>
+<p class="muted">Accedi per gestire entrate, uscite e saldo mensile. I tuoi movimenti online sono associati al tuo account.</p>
+<div class="tabs"><button type="button" id="tabIn" class="tab active">Accedi</button><button type="button" id="tabUp" class="tab">Crea account</button></div>
+<form id="authForm">
+<label>Email<input id="email" type="email" autocomplete="email" placeholder="tu@email.it" required></label>
+<label id="passwordLabel">Password<input id="password" type="password" autocomplete="current-password" minlength="6" placeholder="Almeno 6 caratteri" required></label>
+<button class="primary" id="submit" type="submit">Accedi</button>
+</form>
+<div style="text-align:center"><button type="button" id="forgot" class="link">Ho dimenticato la password</button></div>
+<p id="message" class="message" role="status" aria-live="polite"></p>
+<p class="foot">L'accesso è gestito da Supabase. Usa una password personale e non condividerla. Se crei un account nuovo, potrebbe essere necessario confermare l'email prima di accedere.</p>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://rqqqmekwcpuhfzapeybq.supabase.co";
+const SUPABASE_KEY="sb_publishable_PN9pvW-gjwFz1l_1Ouie8A_yZjWrPYD";
+const client=window.supabase?.createClient?window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY):null;
+let mode="signin";
+const $=id=>document.getElementById(id);
+function show(text){$("message").textContent=text}
+function setMode(next){mode=next;const signup=mode==="signup";$("tabIn").classList.toggle("active",!signup);$("tabUp").classList.toggle("active",signup);$("submit").textContent=signup?"Crea account":"Accedi";$("password").autocomplete=signup?"new-password":"current-password";$("forgot").hidden=signup;show("")}
+$("tabIn").onclick=()=>setMode("signin");$("tabUp").onclick=()=>setMode("signup");
+$("authForm").addEventListener("submit",async event=>{event.preventDefault();if(!client){show("Non riesco a caricare il servizio di accesso. Controlla la connessione, disattiva eventuali blocchi degli script e ricarica la pagina.");return}
+const email=$("email").value.trim(),password=$("password").value;
+if(password.length<6){show("La password deve contenere almeno 6 caratteri.");return}
+$("submit").disabled=true;$("submit").textContent="Attendi…";show("Connessione in corso…");
+try{
+let result;
+if(mode==="signup")result=await client.auth.signUp({email,password,options:{emailRedirectTo:location.origin+"/index.html"}});
+else result=await client.auth.signInWithPassword({email,password});
+if(result.error){show("Non è stato possibile completare l'operazione: "+result.error.message);return}
+if(mode==="signup"&&!result.data.session){show("Account creato. Controlla la posta (anche la cartella spam) e conferma l'indirizzo email, poi torna qui per accedere.");return}
+if(result.data.session){location.replace("index.html");return}
+show("Operazione completata. Segui le istruzioni inviate alla tua email.");
+}catch(error){show("Errore di connessione: "+(error?.message||"riprova tra poco."))}
+finally{$("submit").disabled=false;$("submit").textContent=mode==="signup"?"Crea account":"Accedi"}
+});
+$("forgot").onclick=async()=>{if(!client){show("Servizio di accesso non disponibile: ricarica la pagina.");return}const email=$("email").value.trim();if(!email){show("Inserisci prima la tua email nel campo qui sopra.");$("email").focus();return}show("Invio della richiesta…");try{const {error}=await client.auth.resetPasswordForEmail(email,{redirectTo:location.origin+"/login.html"});show(error?"Errore: "+error.message:"Se l'indirizzo è registrato, riceverai un'email con le istruzioni per reimpostare la password.")}catch(error){show("Errore di connessione: "+(error?.message||"riprova tra poco."))}};
+if(!client)show("Errore: libreria di accesso non caricata. Controlla la connessione e ricarica.");
+else client.auth.getSession().then(({data})=>{if(data.session)location.replace("index.html")}).catch(()=>{});
+const params=new URLSearchParams(location.search);if(params.get("error")==="library")show("La libreria di accesso non si è caricata nella pagina principale. Prova ad aggiornare il browser.");
+</script>
+</body></html>
