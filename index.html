@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conti personali e familiari</title>
+<style>
+:root{font-family:Arial,sans-serif;color:#202938;background:#f3f5f8}*{box-sizing:border-box}body{margin:0;padding:20px}main{max-width:1100px;margin:auto}h1{margin-bottom:5px}.muted,.small{color:#596579}.small{font-size:13px}.panel{background:#fff;border:1px solid #dce2ea;border-radius:12px;padding:18px;margin:15px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px}label{display:block;font-size:14px;font-weight:700}input,select,button{font:inherit}input,select{width:100%;padding:10px;margin-top:6px;border:1px solid #c8d0dc;border-radius:7px;background:white}button{padding:10px 14px;border:0;border-radius:7px;cursor:pointer;font-weight:700;background:#1d4ed8;color:white}.secondary{background:#e7edf7;color:#20304a}.danger{background:#b42318}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}.stat{padding:14px;border-radius:9px;background:#f5f7fb}.stat span{display:block;color:#596579;font-size:13px}.stat strong{display:block;font-size:23px;margin-top:5px}.income{color:#167647}.expense{color:#b42318}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:700px}th,td{padding:9px 8px;border-bottom:1px solid #e2e7ef;text-align:left}th{background:#f5f7fb}@media(max-width:600px){body{padding:10px}.panel{padding:12px}}
+</style>
+</head>
+<body><main>
+<h1>Conti personali e familiari</h1>
+<p class="muted">Registra il giorno in cui ricevi i soldi e quello in cui li spendi. Il saldo si aggiorna automaticamente.</p>
+<section class="panel"><div class="grid"><label>Mese<select id="month"></select></label><label>Anno<input id="year" type="number" min="2000" max="2100"></label></div><p class="small">I dati vengono salvati nel browser di questo dispositivo. Esporta una copia CSV per LibreOffice Calc e una copia di sicurezza JSON.</p></section>
+<section class="panel"><h2>Aggiungi un movimento</h2><form id="form"><div class="grid">
+<label>Data / giorno<input id="date" type="date" required></label>
+<label>Tipo<select id="type"><option value="Entrata">Quando prendo soldi (entrata)</option><option value="Uscita">Quando spendo soldi (uscita)</option></select></label>
+<label>Descrizione<input id="desc" placeholder="Es. stipendio, pensione, spesa" required></label>
+<label>Categoria<select id="cat"><option>Stipendio</option><option>Pensione</option><option>Altri guadagni</option><option>Affitto / mutuo</option><option>Spesa alimentare</option><option>Bollette</option><option>Benzina / trasporti</option><option>Salute</option><option>Scuola / figli</option><option>Rate / debiti</option><option>Svago</option><option>Risparmio</option><option>Altro</option></select></label>
+<label>Importo (€)<input id="amount" type="number" min="0.01" step="0.01" placeholder="Es. 1250.00" required></label>
+<label>Note facoltative<input id="notes" placeholder="Dettagli"></label>
+</div><div class="actions"><button type="submit">Aggiungi movimento</button><button type="reset" class="secondary">Svuota campi</button></div></form></section>
+<section class="panel"><h2>Riepilogo del mese</h2><div class="summary">
+<div class="stat"><span>Soldi ricevuti</span><strong id="inc" class="income">0,00 €</strong></div>
+<div class="stat"><span>Soldi spesi</span><strong id="exp" class="expense">0,00 €</strong></div>
+<div class="stat"><span>Soldi rimasti</span><strong id="bal">0,00 €</strong></div>
+<div class="stat"><span>Movimenti</span><strong id="count">0</strong></div>
+</div><div class="actions"><button id="csv" type="button">Esporta per LibreOffice Calc (CSV)</button><button id="backup" type="button" class="secondary">Copia di sicurezza</button><label>Ripristina copia JSON<input id="restore" type="file" accept=".json,application/json"></label></div></section>
+<section class="panel"><h2>Movimenti del mese</h2><div class="table-wrap"><table><thead><tr><th>Data</th><th>Tipo</th><th>Descrizione</th><th>Categoria</th><th>Importo</th><th>Note</th><th>Azione</th></tr></thead><tbody id="rows"></tbody></table></div><p id="empty" class="small">Nessun movimento inserito per questo mese.</p></section>
+<p class="small">Se LibreOffice chiede come aprire il CSV, scegli il separatore “punto e virgola”.</p>
+</main>
+<script>
+const monthNames=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+const month=document.getElementById('month');monthNames.forEach((n,i)=>{const o=document.createElement('option');o.value=String(i+1).padStart(2,'0');o.textContent=n;month.append(o)});
+const today=new Date();month.value=String(today.getMonth()+1).padStart(2,'0');document.getElementById('year').value=today.getFullYear();document.getElementById('date').value=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+let entries=[];const key=()=>`family-monthly-${document.getElementById('year').value}-${month.value}`;const euro=n=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n);
+function load(){try{entries=JSON.parse(localStorage.getItem(key())||'[]')}catch{entries=[]}render()}function save(){localStorage.setItem(key(),JSON.stringify(entries))}
+function render(){const body=document.getElementById('rows');body.replaceChildren();let income=0,expense=0;entries.forEach((e,i)=>{if(e.type==='Entrata')income+=Number(e.amount);else expense+=Number(e.amount);const tr=document.createElement('tr');[e.date,e.type,e.desc,e.cat,euro(Number(e.amount)),e.notes||''].forEach((v,j)=>{const td=document.createElement('td');td.textContent=v;if(j===1)td.className=e.type==='Entrata'?'income':'expense';tr.append(td)});const td=document.createElement('td'),b=document.createElement('button');b.textContent='Elimina';b.className='danger';b.onclick=()=>{if(confirm('Eliminare questo movimento?')){entries.splice(i,1);save();render()}};td.append(b);tr.append(td);body.append(tr)});document.getElementById('inc').textContent=euro(income);document.getElementById('exp').textContent=euro(expense);const bal=document.getElementById('bal');bal.textContent=euro(income-expense);bal.className=income-expense<0?'expense':'income';document.getElementById('count').textContent=entries.length;document.getElementById('empty').hidden=entries.length>0}
+document.getElementById('form').addEventListener('submit',e=>{e.preventDefault();const date=document.getElementById('date').value,amount=Number(document.getElementById('amount').value);if(!date||!Number.isFinite(amount)||amount<=0)return;if(date.slice(0,7)!==document.getElementById('year').value+'-'+month.value&&!confirm('La data non corrisponde al mese selezionato. Registrare comunque in questo mese?'))return;entries.push({date,type:document.getElementById('type').value,desc:document.getElementById('desc').value.trim(),cat:document.getElementById('cat').value,amount,notes:document.getElementById('notes').value.trim()});entries.sort((a,b)=>a.date.localeCompare(b.date));save();render();document.getElementById('desc').value='';document.getElementById('amount').value='';document.getElementById('notes').value=''});
+month.addEventListener('change',load);document.getElementById('year').addEventListener('change',load);
+function download(text,type,name){const url=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)}const cell=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+document.getElementById('csv').onclick=()=>{const data=[['Conti personali e familiari',monthNames[Number(month.value)-1],document.getElementById('year').value],[],['Data','Tipo','Descrizione','Categoria','Importo EUR','Note'],...entries.map(e=>[e.date,e.type,e.desc,e.cat,Number(e.amount).toFixed(2).replace('.',','),e.notes||''])];download('\uFEFF'+data.map(r=>r.map(cell).join(';')).join('\r\n'),'text/csv;charset=utf-8',`conti-familiari-${document.getElementById('year').value}-${month.value}.csv`)};
+document.getElementById('backup').onclick=()=>download(JSON.stringify({month:month.value,year:document.getElementById('year').value,entries},null,2),'application/json',`copia-conti-${document.getElementById('year').value}-${month.value}.json`);
+document.getElementById('restore').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const obj=JSON.parse(await f.text());if(!Array.isArray(obj.entries))throw Error('formato');if(confirm('Sostituire i movimenti del mese selezionato con quelli della copia?')){entries=obj.entries;save();render()}}catch{alert('File di copia non valido.')}e.target.value=''});load();
+</script></body></html>
